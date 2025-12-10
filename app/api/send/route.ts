@@ -4,37 +4,71 @@ import nodemailer from 'nodemailer';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { settings, to, subject, html } = body;
+        const { smtpSettings, email } = body;
 
-        // Validate settings
-        if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPass) {
+        if (!smtpSettings || !email) {
             return NextResponse.json(
-                { error: 'Missing SMTP settings' },
+                { error: 'Missing configuration or email data' },
                 { status: 400 }
             );
         }
 
+        // Create Transporter
         const transporter = nodemailer.createTransport({
-            host: settings.smtpHost,
-            port: parseInt(settings.smtpPort || "587"),
-            secure: parseInt(settings.smtpPort) === 465, // true for 465, false for other ports
+            host: smtpSettings.host,
+            port: Number(smtpSettings.port),
+            secure: Number(smtpSettings.port) === 465,
             auth: {
-                user: settings.smtpUser,
-                pass: settings.smtpPass,
+                user: smtpSettings.user,
+                pass: smtpSettings.pass,
             },
         });
 
-        await transporter.sendMail({
-            from: settings.fromEmail,
-            to: to,
-            subject: subject,
-            html: html, // Using html body
-            // text: convertToText(html) // Optional fallback
+        const allowLocalFiles = process.env.ALLOW_LOCAL_FILES === 'true';
+
+        // Prepare Attachments
+        const formattedAttachments = email.attachments?.map((att: any) => {
+            // Security Check: Only allow 'path' if strictly allowed by server env (Electron)
+            if (att.path) {
+                if (!allowLocalFiles) {
+                    throw new Error("Local file system access is disabled on this server.");
+                }
+                return {
+                    filename: att.filename, // Optional override
+                    path: att.path // Nodemailer handles reading the file
+                };
+            }
+
+            // Standard Content (Web Mode / Uploaded files)
+            return {
+                filename: att.filename,
+                content: att.content,
+                encoding: att.encoding || 'base64',
+            };
+        }) || [];
+
+        // Send Mail
+        const info = await transporter.sendMail({
+            from: email.from,
+            to: email.to,
+            cc: email.cc,
+            bcc: email.bcc,
+            subject: email.subject,
+            html: email.bodies,
+            text: email.text,
+            attachments: formattedAttachments,
         });
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({
+            success: true,
+            messageId: info.messageId,
+            response: info.response,
+            accepted: info.accepted,
+            rejected: info.rejected
+        });
+
     } catch (error: any) {
-        console.error('Email send error:', error);
+        console.error('Email Send Error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to send email' },
             { status: 500 }

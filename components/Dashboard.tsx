@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     LayoutDashboard,
     FileSpreadsheet,
     FilePen,
     Send,
     Settings,
-    Menu
+    ChevronsLeft,
+    ChevronsRight,
+    Paperclip,
+    Menu,
+    Archive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -15,18 +19,36 @@ import DataTab from "@/components/tabs/DataTab";
 import TemplateTab from "@/components/tabs/TemplateTab";
 import PreviewTab from "@/components/tabs/PreviewTab";
 import SettingsTab from "@/components/tabs/SettingsTab";
+import AttachmentsTab from "@/components/tabs/AttachmentsTab";
+import SavedTab from "@/components/tabs/SavedTab";
+import { LanguagePicker } from "@/components/LanguagePicker";
+import { useI18n } from "@/context/I18nContext";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-type Tab = "data" | "template" | "preview" | "settings";
+
+type Tab = "data" | "template" | "preview" | "settings" | "attachments" | "saved";
 
 export default function Dashboard() {
+    const { t } = useI18n();
     const [activeTab, setActiveTab] = useState<Tab>("data");
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isElectron, setIsElectron] = useState(false);
+
+    useEffect(() => {
+        // Basic check for Electron user agent
+        if (typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)) {
+            setIsElectron(true);
+        }
+    }, []);
 
     const menuItems = [
-        { id: "data", label: "Data Source", icon: FileSpreadsheet },
-        { id: "template", label: "Email Template", icon: FilePen },
-        { id: "preview", label: "Preview & Send", icon: Send },
-        { id: "settings", label: "Settings", icon: Settings },
+        { id: "data", label: t("nav.data"), icon: FileSpreadsheet },
+        { id: "template", label: t("nav.template"), icon: FilePen },
+        // Only show Attachments tab in Web Mode
+        ...(!isElectron ? [{ id: "attachments", label: t("nav.attachments"), icon: Paperclip }] : []),
+        { id: "preview", label: t("nav.preview"), icon: Send },
+        { id: "saved", label: t("nav.saved") || "Saved", icon: Archive },
+        { id: "settings", label: t("nav.settings"), icon: Settings },
     ] as const;
 
     return (
@@ -46,7 +68,14 @@ export default function Dashboard() {
                                 exit={{ opacity: 0 }}
                                 className="font-bold text-xl text-primary"
                             >
-                                Envía
+                                <a
+                                    href="https://github.com/heavenly-tech/envia"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:underline flex items-center gap-2"
+                                >
+                                    📨 Envía
+                                </a>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -54,7 +83,7 @@ export default function Dashboard() {
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         className="p-1 rounded-md hover:bg-muted text-muted-foreground"
                     >
-                        <Menu size={20} />
+                        {isSidebarOpen ? <ChevronsLeft size={20} /> : <ChevronsRight size={20} />}
                     </button>
                 </div>
 
@@ -63,7 +92,7 @@ export default function Dashboard() {
                         const Icon = item.icon;
                         const isActive = activeTab === item.id;
 
-                        return (
+                        const button = (
                             <button
                                 key={item.id}
                                 onClick={() => setActiveTab(item.id as Tab)}
@@ -91,11 +120,22 @@ export default function Dashboard() {
                                 </AnimatePresence>
                             </button>
                         );
+
+                        // Show tooltip only when sidebar is collapsed
+                        return isSidebarOpen ? (
+                            <div key={item.id}>{button}</div>
+                        ) : (
+                            <Tooltip key={item.id}>
+                                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                                <TooltipContent side="right">{item.label}</TooltipContent>
+                            </Tooltip>
+                        );
                     })}
                 </nav>
 
-                <div className="p-4 border-t">
-                    <div className="text-xs text-muted-foreground text-center">v1.0.0</div>
+                <div className="p-4 border-t flex flex-col items-center gap-2">
+                    {isSidebarOpen && <LanguagePicker />}
+                    <div className="text-xs text-muted-foreground text-center">v1.1.0</div>
                 </div>
             </motion.aside>
 
@@ -106,18 +146,14 @@ export default function Dashboard() {
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">
                             {menuItems.find(i => i.id === activeTab)?.label}
                         </h1>
-                        <p className="text-muted-foreground mt-1">
-                            {activeTab === "data" && "Manage your recipients and data source."}
-                            {activeTab === "template" && "Design your email content."}
-                            {activeTab === "preview" && "Review and send your emails."}
-                            {activeTab === "settings" && "Configure SMTP and application preferences."}
-                        </p>
                     </header>
 
                     <div className="min-h-[500px]">
                         {activeTab === "data" && <DataTab />}
                         {activeTab === "template" && <TemplateTab />}
+                        {activeTab === "attachments" && <AttachmentsTab />}
                         {activeTab === "preview" && <PreviewTab />}
+                        {activeTab === "saved" && <SavedTab />}
                         {activeTab === "settings" && <SettingsTab />}
                     </div>
                 </div>
