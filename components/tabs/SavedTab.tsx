@@ -10,9 +10,6 @@ import {
     listDataItems,
     listTemplateItems,
     listSMTPItems,
-    saveDataItem,
-    saveTemplateItem,
-    saveSMTPItem,
     deleteDataItem,
     deleteTemplateItem,
     deleteSMTPItem,
@@ -25,28 +22,10 @@ import {
     exportTemplateItem,
     exportSMTPItem,
 } from "@/lib/storage";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-    Save,
     Upload,
     Download,
     Trash2,
@@ -54,13 +33,15 @@ import {
     FileText,
     Server,
     FolderOpen,
-    AlertCircle,
-    Loader2,
+    CheckCircle2,
+    Circle,
+    RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function SavedTab() {
-    const { data, headers, setData, template, setTemplate, settings, setSettings } = useMailMerge();
+    const { setData, setTemplate, setSettings } = useMailMerge();
     const { t } = useI18n();
 
     // Saved items lists
@@ -68,14 +49,7 @@ export default function SavedTab() {
     const [templateItems, setTemplateItems] = useState<SavedTemplateItem[]>([]);
     const [smtpItems, setSMTPItems] = useState<SavedSMTPItem[]>([]);
 
-    // Save dialog state
-    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-    const [dataName, setDataName] = useState("");
-    const [templateName, setTemplateName] = useState("");
-    const [smtpName, setSMTPName] = useState("");
-
-    // Load dialog state (mix-and-match)
-    const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+    // Selection state for Mix & Match
     const [selectedDataId, setSelectedDataId] = useState<string>("");
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
     const [selectedSMTPId, setSelectedSMTPId] = useState<string>("");
@@ -93,61 +67,15 @@ export default function SavedTab() {
         setSMTPItems(listSMTPItems());
     };
 
-    // Save handlers
-    const handleSaveData = () => {
-        if (!dataName.trim()) {
-            toast.error(t("saved.nameRequired") || "Please enter a name");
-            return;
-        }
-        if (data.length === 0) {
-            toast.error(t("saved.noData") || "No data to save");
-            return;
-        }
-        saveDataItem(dataName.trim(), data, headers);
-        toast.success(t("saved.dataSaved") || "Data saved!");
-        setDataName("");
-        refreshItems();
-    };
-
-    const handleSaveTemplate = () => {
-        if (!templateName.trim()) {
-            toast.error(t("saved.nameRequired") || "Please enter a name");
-            return;
-        }
-        if (!template.subject && !template.body) {
-            toast.error(t("saved.noTemplate") || "No template to save");
-            return;
-        }
-        saveTemplateItem(templateName.trim(), template);
-        toast.success(t("saved.templateSaved") || "Template saved!");
-        setTemplateName("");
-        refreshItems();
-    };
-
-    const handleSaveSMTP = () => {
-        if (!smtpName.trim()) {
-            toast.error(t("saved.nameRequired") || "Please enter a name");
-            return;
-        }
-        if (!settings.smtpHost) {
-            toast.error(t("saved.noSMTP") || "No SMTP settings to save");
-            return;
-        }
-        saveSMTPItem(smtpName.trim(), settings);
-        toast.success(t("saved.smtpSaved") || "SMTP settings saved!");
-        setSMTPName("");
-        refreshItems();
-    };
-
     // Load handler (mix-and-match)
-    const handleLoad = () => {
-        let loaded = false;
+    const handleLoadSelected = () => {
+        let loadedCount = 0;
 
         if (selectedDataId) {
             const item = getDataItem(selectedDataId);
             if (item) {
                 setData(item.rows);
-                loaded = true;
+                loadedCount++;
             }
         }
 
@@ -155,7 +83,7 @@ export default function SavedTab() {
             const item = getTemplateItem(selectedTemplateId);
             if (item) {
                 setTemplate(item.template);
-                loaded = true;
+                loadedCount++;
             }
         }
 
@@ -163,47 +91,74 @@ export default function SavedTab() {
             const item = getSMTPItem(selectedSMTPId);
             if (item) {
                 setSettings(item.settings);
-                loaded = true;
+                loadedCount++;
             }
         }
 
-        if (loaded) {
-            toast.success(t("saved.loaded") || "Configuration loaded!");
-            setLoadDialogOpen(false);
-            setSelectedDataId("");
-            setSelectedTemplateId("");
-            setSelectedSMTPId("");
+        if (loadedCount > 0) {
+            toast.success(t("saved.loaded") || "Configuration loaded successfully!");
+            // Optional: reset selection after load
+            // setSelectedDataId("");
+            // setSelectedTemplateId("");
+            // setSelectedSMTPId("");
         } else {
-            toast.error(t("saved.selectOne") || "Select at least one item to load");
+            toast.error(t("saved.selectOne") || "Please select at least one item to load.");
         }
+    };
+
+    const handleResetSelection = () => {
+        setSelectedDataId("");
+        setSelectedTemplateId("");
+        setSelectedSMTPId("");
     };
 
     // Delete handlers
-    const handleDeleteData = (id: string, name: string) => {
+    const handleDeleteData = (e: React.MouseEvent, id: string, name: string) => {
+        e.stopPropagation();
         if (confirm(`${t("saved.deleteConfirm") || "Delete"} "${name}"?`)) {
             deleteDataItem(id);
+            if (selectedDataId === id) setSelectedDataId("");
             toast.success(t("saved.deleted") || "Deleted");
             refreshItems();
         }
     };
 
-    const handleDeleteTemplate = (id: string, name: string) => {
+    const handleDeleteTemplate = (e: React.MouseEvent, id: string, name: string) => {
+        e.stopPropagation();
         if (confirm(`${t("saved.deleteConfirm") || "Delete"} "${name}"?`)) {
             deleteTemplateItem(id);
+            if (selectedTemplateId === id) setSelectedTemplateId("");
             toast.success(t("saved.deleted") || "Deleted");
             refreshItems();
         }
     };
 
-    const handleDeleteSMTP = (id: string, name: string) => {
+    const handleDeleteSMTP = (e: React.MouseEvent, id: string, name: string) => {
+        e.stopPropagation();
         if (confirm(`${t("saved.deleteConfirm") || "Delete"} "${name}"?`)) {
             deleteSMTPItem(id);
+            if (selectedSMTPId === id) setSelectedSMTPId("");
             toast.success(t("saved.deleted") || "Deleted");
             refreshItems();
         }
     };
 
-    // Import handler
+    // Export individual handlers
+    const handleExportData = (e: React.MouseEvent, item: SavedDataItem) => {
+        e.stopPropagation();
+        exportDataItem(item);
+    };
+    const handleExportTemplate = (e: React.MouseEvent, item: SavedTemplateItem) => {
+        e.stopPropagation();
+        exportTemplateItem(item);
+    };
+    const handleExportSMTP = (e: React.MouseEvent, item: SavedSMTPItem) => {
+        e.stopPropagation();
+        exportSMTPItem(item);
+    };
+
+
+    // Cloud/Bundle handlers
     const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -227,297 +182,249 @@ export default function SavedTab() {
     if (!mounted) return null;
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Quick Actions Bar */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-wrap gap-3">
-                        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    <Save className="h-4 w-4 mr-2" />
-                                    {t("saved.saveNew") || "Save Current"}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle>{t("saved.saveTitle") || "Save Configuration"}</DialogTitle>
-                                    <DialogDescription>
-                                        {t("saved.saveDialogDesc") || "Give each item a name to save it separately."}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    {/* Save Data */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-shrink-0 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                                            <Database className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <Input
-                                                value={dataName}
-                                                onChange={(e) => setDataName(e.target.value)}
-                                                placeholder={`${t("saved.dataLabel") || "Data"} (${data.length} rows)`}
-                                                disabled={data.length === 0}
-                                            />
-                                        </div>
-                                        <Button size="sm" onClick={handleSaveData} disabled={data.length === 0 || !dataName.trim()}>
-                                            <Save className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-
-                                    {/* Save Template */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-shrink-0 p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                                            <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <Input
-                                                value={templateName}
-                                                onChange={(e) => setTemplateName(e.target.value)}
-                                                placeholder={t("saved.templateLabel") || "Template name"}
-                                                disabled={!template.subject && !template.body}
-                                            />
-                                        </div>
-                                        <Button size="sm" onClick={handleSaveTemplate} disabled={(!template.subject && !template.body) || !templateName.trim()}>
-                                            <Save className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-
-                                    {/* Save SMTP */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-shrink-0 p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                                            <Server className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <Input
-                                                value={smtpName}
-                                                onChange={(e) => setSMTPName(e.target.value)}
-                                                placeholder={t("saved.smtpLabel") || "SMTP config name"}
-                                                disabled={!settings.smtpHost}
-                                            />
-                                        </div>
-                                        <Button size="sm" onClick={handleSaveSMTP} disabled={!settings.smtpHost || !smtpName.trim()}>
-                                            <Save className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                                        {t("common.cancel") || "Close"}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-
-                        <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline">
-                                    <FolderOpen className="h-4 w-4 mr-2" />
-                                    {t("saved.loadMix") || "Load / Mix & Match"}
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <DialogHeader>
-                                    <DialogTitle>{t("saved.loadTitle") || "Load Configuration"}</DialogTitle>
-                                    <DialogDescription>
-                                        {t("saved.loadDialogDesc") || "Select items to load. Mix and match different saved items."}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    {/* Load Data */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <Database className="h-4 w-4 text-blue-500" />
-                                            <Label>{t("saved.dataLabel") || "Data"}</Label>
-                                        </div>
-                                        <Select value={selectedDataId || "__none__"} onValueChange={(v) => setSelectedDataId(v === "__none__" ? "" : v)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t("saved.selectData") || "Select data..."} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="__none__">-- {t("saved.none") || "None"} --</SelectItem>
-                                                {dataItems.map(item => (
-                                                    <SelectItem key={item.id} value={item.id}>
-                                                        {item.name} ({item.rows.length} rows)
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    {/* Load Template */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-green-500" />
-                                            <Label>{t("saved.templateLabel") || "Template"}</Label>
-                                        </div>
-                                        <Select value={selectedTemplateId || "__none__"} onValueChange={(v) => setSelectedTemplateId(v === "__none__" ? "" : v)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t("saved.selectTemplate") || "Select template..."} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="__none__">-- {t("saved.none") || "None"} --</SelectItem>
-                                                {templateItems.map(item => (
-                                                    <SelectItem key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    {/* Load SMTP */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <Server className="h-4 w-4 text-amber-500" />
-                                            <Label>{t("saved.smtpLabel") || "SMTP Settings"}</Label>
-                                        </div>
-                                        <Select value={selectedSMTPId || "__none__"} onValueChange={(v) => setSelectedSMTPId(v === "__none__" ? "" : v)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t("saved.selectSMTP") || "Select SMTP..."} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="__none__">-- {t("saved.none") || "None"} --</SelectItem>
-                                                {smtpItems.map(item => (
-                                                    <SelectItem key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setLoadDialogOpen(false)}>
-                                        {t("common.cancel") || "Cancel"}
-                                    </Button>
-                                    <Button onClick={handleLoad}>
-                                        <FolderOpen className="h-4 w-4 mr-2" />
-                                        {t("saved.load") || "Load Selected"}
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-
-                        <div className="relative">
-                            <Button variant="outline">
-                                <Upload className="h-4 w-4 mr-2" />
-                                {t("saved.import") || "Import"}
-                            </Button>
-                            <input
-                                type="file"
-                                accept=".json"
-                                onChange={handleImport}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                        </div>
-
-                        <Button variant="outline" onClick={() => exportAllItems()}>
-                            <Download className="h-4 w-4 mr-2" />
-                            {t("saved.exportAll") || "Export All"}
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight">{t("saved.composerTitle") || "Configuration Composer"}</h2>
+                    <p className="text-muted-foreground">
+                        {t("saved.composerDesc") || "Mix & match saved items to build your campaign."}
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <div className="relative">
+                        <Button variant="outline" size="sm">
+                            <Upload className="h-4 w-4 mr-2" />
+                            {t("saved.import") || "Import Bundle"}
                         </Button>
+                        <input
+                            type="file"
+                            accept=".json"
+                            onChange={handleImport}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
                     </div>
-                </CardContent>
-            </Card>
+                    <Button variant="outline" size="sm" onClick={() => exportAllItems()}>
+                        <Download className="h-4 w-4 mr-2" />
+                        {t("saved.exportAll") || "Export Bundle"}
+                    </Button>
+                </div>
+            </div>
 
-            {/* Saved Items Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Data Items */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Database className="h-4 w-4 text-blue-500" />
-                            {t("saved.savedData") || "Saved Data"}
-                        </CardTitle>
+            {/* Main Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-250px)] min-h-[400px]">
+                {/* Column 1: Data */}
+                <Card className="flex flex-col h-full overflow-hidden border-blue-200 dark:border-blue-900 shadow-sm">
+                    <CardHeader className="bg-blue-50/50 dark:bg-blue-950/20 py-3 border-b border-blue-100 dark:border-blue-900/50 flex flex-row items-center justify-between space-y-0">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-md">
+                                <Database className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span className="font-semibold text-blue-900 dark:text-blue-100">{t("saved.savedData") || "Data"}</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            {dataItems.length}
+                        </Badge>
                     </CardHeader>
-                    <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
+                    <CardContent className="flex-1 overflow-y-auto p-2 space-y-2">
                         {dataItems.length === 0 ? (
-                            <p className="text-sm text-muted-foreground italic">{t("saved.noItems") || "No saved items"}</p>
+                            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-sm italic">
+                                <Database className="h-8 w-8 mb-2 opacity-20" />
+                                {t("saved.noItems") || "No items"}
+                            </div>
                         ) : (
-                            dataItems.map(item => (
-                                <div key={item.id} className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50">
-                                    <div className="truncate flex-1">
-                                        <div className="font-medium text-sm truncate">{item.name}</div>
-                                        <div className="text-xs text-muted-foreground">{item.rows.length} rows • {formatDate(item.createdAt)}</div>
+                            dataItems.map(item => {
+                                const isSelected = selectedDataId === item.id;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setSelectedDataId(isSelected ? "" : item.id)}
+                                        className={cn(
+                                            "group flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+                                            isSelected
+                                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500"
+                                                : "border-transparent bg-card hover:border-border hover:bg-accent"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3 overflow-hidden">
+                                            <div className={cn("mt-1", isSelected ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground")}>
+                                                {isSelected ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className={cn("font-medium truncate", isSelected && "text-blue-700 dark:text-blue-300")}>
+                                                    {item.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {item.rows.length} rows • {formatDate(item.createdAt)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleExportData(e, item)}>
+                                                <Download className="h-3 w-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => handleDeleteData(e, item.id, item.name)}>
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportDataItem(item)} title={t("saved.export") || "Export"}>
-                                            <Download className="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteData(item.id, item.name)} title={t("saved.delete") || "Delete"}>
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Template Items */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <FileText className="h-4 w-4 text-green-500" />
-                            {t("saved.savedTemplates") || "Saved Templates"}
-                        </CardTitle>
+                {/* Column 2: Template */}
+                <Card className="flex flex-col h-full overflow-hidden border-green-200 dark:border-green-900 shadow-sm">
+                    <CardHeader className="bg-green-50/50 dark:bg-green-950/20 py-3 border-b border-green-100 dark:border-green-900/50 flex flex-row items-center justify-between space-y-0">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-green-100 dark:bg-green-900 rounded-md">
+                                <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <span className="font-semibold text-green-900 dark:text-green-100">{t("saved.savedTemplates") || "Templates"}</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                            {templateItems.length}
+                        </Badge>
                     </CardHeader>
-                    <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
+                    <CardContent className="flex-1 overflow-y-auto p-2 space-y-2">
                         {templateItems.length === 0 ? (
-                            <p className="text-sm text-muted-foreground italic">{t("saved.noItems") || "No saved items"}</p>
+                            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-sm italic">
+                                <FileText className="h-8 w-8 mb-2 opacity-20" />
+                                {t("saved.noItems") || "No items"}
+                            </div>
                         ) : (
-                            templateItems.map(item => (
-                                <div key={item.id} className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50">
-                                    <div className="truncate flex-1">
-                                        <div className="font-medium text-sm truncate">{item.name}</div>
-                                        <div className="text-xs text-muted-foreground truncate">{item.template.subject || "(no subject)"}</div>
+                            templateItems.map(item => {
+                                const isSelected = selectedTemplateId === item.id;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setSelectedTemplateId(isSelected ? "" : item.id)}
+                                        className={cn(
+                                            "group flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+                                            isSelected
+                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 ring-1 ring-green-500"
+                                                : "border-transparent bg-card hover:border-border hover:bg-accent"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3 overflow-hidden">
+                                            <div className={cn("mt-1", isSelected ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
+                                                {isSelected ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className={cn("font-medium truncate", isSelected && "text-green-700 dark:text-green-300")}>
+                                                    {item.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                                    {item.template.subject || "(No subject)"}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleExportTemplate(e, item)}>
+                                                <Download className="h-3 w-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => handleDeleteTemplate(e, item.id, item.name)}>
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportTemplateItem(item)} title={t("saved.export") || "Export"}>
-                                            <Download className="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTemplate(item.id, item.name)} title={t("saved.delete") || "Delete"}>
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </CardContent>
                 </Card>
 
-                {/* SMTP Items */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Server className="h-4 w-4 text-amber-500" />
-                            {t("saved.savedSMTP") || "Saved SMTP"}
-                        </CardTitle>
+                {/* Column 3: SMTP */}
+                <Card className="flex flex-col h-full overflow-hidden border-amber-200 dark:border-amber-900 shadow-sm">
+                    <CardHeader className="bg-amber-50/50 dark:bg-amber-950/20 py-3 border-b border-amber-100 dark:border-amber-900/50 flex flex-row items-center justify-between space-y-0">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-amber-100 dark:bg-amber-900 rounded-md">
+                                <Server className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <span className="font-semibold text-amber-900 dark:text-amber-100">{t("saved.savedSMTP") || "SMTP"}</span>
+                        </div>
+                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                            {smtpItems.length}
+                        </Badge>
                     </CardHeader>
-                    <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
+                    <CardContent className="flex-1 overflow-y-auto p-2 space-y-2">
                         {smtpItems.length === 0 ? (
-                            <p className="text-sm text-muted-foreground italic">{t("saved.noItems") || "No saved items"}</p>
+                            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-sm italic">
+                                <Server className="h-8 w-8 mb-2 opacity-20" />
+                                {t("saved.noItems") || "No items"}
+                            </div>
                         ) : (
-                            smtpItems.map(item => (
-                                <div key={item.id} className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/50">
-                                    <div className="truncate flex-1">
-                                        <div className="font-medium text-sm truncate">{item.name}</div>
-                                        <div className="text-xs text-muted-foreground truncate">{item.settings.smtpHost}</div>
+                            smtpItems.map(item => {
+                                const isSelected = selectedSMTPId === item.id;
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setSelectedSMTPId(isSelected ? "" : item.id)}
+                                        className={cn(
+                                            "group flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md",
+                                            isSelected
+                                                ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-1 ring-amber-500"
+                                                : "border-transparent bg-card hover:border-border hover:bg-accent"
+                                        )}
+                                    >
+                                        <div className="flex items-start gap-3 overflow-hidden">
+                                            <div className={cn("mt-1", isSelected ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+                                                {isSelected ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className={cn("font-medium truncate", isSelected && "text-amber-700 dark:text-amber-300")}>
+                                                    {item.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground truncate">
+                                                    {item.settings.smtpHost}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => handleExportSMTP(e, item)}>
+                                                <Download className="h-3 w-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={(e) => handleDeleteSMTP(e, item.id, item.name)}>
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportSMTPItem(item)} title={t("saved.export") || "Export"}>
-                                            <Download className="h-3 w-3" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteSMTP(item.id, item.name)} title={t("saved.delete") || "Delete"}>
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Floating Action Bar */}
+            {(selectedDataId || selectedTemplateId || selectedSMTPId) && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+                    <Card className="shadow-lg border-2 border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                        <CardContent className="flex items-center gap-4 p-2 pl-4">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>{t("saved.selected") || "Selected"}:</span>
+                                <div className="flex gap-1">
+                                    {selectedDataId && <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs px-1.5">Data</Badge>}
+                                    {selectedTemplateId && <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs px-1.5">Template</Badge>}
+                                    {selectedSMTPId && <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs px-1.5">SMTP</Badge>}
+                                </div>
+                            </div>
+                            <div className="h-6 w-px bg-border mx-1" />
+                            <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={handleResetSelection} className="h-8">
+                                    <RotateCcw className="h-3 w-3 mr-2" />
+                                    {t("common.reset") || "Reset"}
+                                </Button>
+                                <Button size="sm" onClick={handleLoadSelected} className="h-8">
+                                    <FolderOpen className="h-3 w-3 mr-2" />
+                                    {t("saved.load") || "Load Configuration"}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }

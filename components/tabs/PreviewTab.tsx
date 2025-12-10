@@ -3,7 +3,26 @@
 import { useMailMerge } from "@/context/MailMergeContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Send, Loader2, AlertCircle, Pencil, RotateCcw, Code, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Loader2, AlertCircle, Pencil, RotateCcw, Code, Eye, Database, FileText, Server } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    SavedDataItem,
+    SavedTemplateItem,
+    SavedSMTPItem,
+    listDataItems,
+    listTemplateItems,
+    listSMTPItems,
+    getDataItem,
+    getTemplateItem,
+    getSMTPItem
+} from "@/lib/storage";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,7 +48,7 @@ interface EmailOverride {
 }
 
 export default function PreviewTab() {
-    const { data, template, settings, attachmentPool, electronFilePaths, attachmentFolderPath } = useMailMerge();
+    const { data, setData, template, setTemplate, settings, setSettings, attachmentPool, electronFilePaths, attachmentFolderPath } = useMailMerge();
     const { t } = useI18n();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isSending, setIsSending] = useState(false);
@@ -141,6 +160,41 @@ export default function PreviewTab() {
         }
 
         return finalAttachments;
+    };
+
+    // Load saved items state
+    const [savedDataItems, setSavedDataItems] = useState<SavedDataItem[]>([]);
+    const [savedTemplateItems, setSavedTemplateItems] = useState<SavedTemplateItem[]>([]);
+    const [savedSMTPItems, setSavedSMTPItems] = useState<SavedSMTPItem[]>([]);
+
+    useEffect(() => {
+        setSavedDataItems(listDataItems());
+        setSavedTemplateItems(listTemplateItems());
+        setSavedSMTPItems(listSMTPItems());
+    }, []);
+
+    const handleLoadData = (id: string) => {
+        const item = getDataItem(id);
+        if (item) {
+            setData(item.rows);
+            toast.success(t("saved.loaded") || "Data loaded");
+        }
+    };
+
+    const handleLoadTemplate = (id: string) => {
+        const item = getTemplateItem(id);
+        if (item) {
+            setTemplate(item.template);
+            toast.success(t("saved.loaded") || "Template loaded");
+        }
+    };
+
+    const handleLoadSettings = (id: string) => {
+        const item = getSMTPItem(id);
+        if (item) {
+            setSettings(item.settings);
+            toast.success(t("saved.loaded") || "Settings loaded");
+        }
     };
 
     const handleNext = () => {
@@ -283,16 +337,6 @@ export default function PreviewTab() {
         }
     };
 
-    if (!hasData) {
-        return (
-            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-                <AlertCircle className="mb-4 h-12 w-12" />
-                <h3 className="text-lg font-semibold">{t("preview.noDataImported")}</h3>
-                <p>{t("preview.noDataImportedDescription")}</p>
-            </div>
-        );
-    }
-
     const previewAttachmentsName = template.attachmentVariable
         ? (attachmentPool.find(f => f.name === currentRecord[template.attachmentVariable!])?.name || currentRecord[template.attachmentVariable!])
         : (attachmentPool.length > 0 ? `${attachmentPool.length} static files` : "None");
@@ -301,183 +345,250 @@ export default function PreviewTab() {
 
     return (
         <div className="space-y-4 h-full flex flex-col animate-in fade-in duration-500">
-            {/* Controls */}
-            <Card>
-                <CardContent className="p-4 flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <Button variant="outline" size="icon" onClick={handlePrev} disabled={currentIndex === 0 || isSending}>
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="text-sm font-medium">{t("preview.record")} {currentIndex + 1} of {totalRecords}</div>
-                            <Button variant="outline" size="icon" onClick={handleNext} disabled={currentIndex === totalRecords - 1 || isSending}>
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            {hasOverride && (
-                                <Button variant="ghost" size="sm" onClick={resetCurrentOverride} className="text-amber-600">
-                                    <RotateCcw className="h-3 w-3 mr-1" /> {t("preview.reset")}
-                                </Button>
+            {/* Load Configuration Headers */}
+            <div className="flex gap-2 mb-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1">
+                            <Database className="mr-2 h-4 w-4 text-blue-500" />
+                            {t("saved.load") || "Load"} Data
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>{t("saved.savedData") || "Saved Data"}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {savedDataItems.length === 0 ? <div className="p-2 text-sm text-muted-foreground">{t("saved.noItems")}</div> : savedDataItems.map(item => (
+                            <DropdownMenuItem key={item.id} onClick={() => handleLoadData(item.id)}>
+                                <span>{item.name}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1">
+                            <FileText className="mr-2 h-4 w-4 text-green-500" />
+                            {t("saved.load") || "Load"} Template
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>{t("saved.savedTemplates") || "Saved Templates"}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {savedTemplateItems.length === 0 ? <div className="p-2 text-sm text-muted-foreground">{t("saved.noItems")}</div> : savedTemplateItems.map(item => (
+                            <DropdownMenuItem key={item.id} onClick={() => handleLoadTemplate(item.id)}>
+                                <span>{item.name}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-1">
+                            <Server className="mr-2 h-4 w-4 text-amber-500" />
+                            {t("saved.load") || "Load"} SMTP
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56">
+                        <DropdownMenuLabel>{t("saved.savedSMTP") || "Saved SMTP"}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {savedSMTPItems.length === 0 ? <div className="p-2 text-sm text-muted-foreground">{t("saved.noItems")}</div> : savedSMTPItems.map(item => (
+                            <DropdownMenuItem key={item.id} onClick={() => handleLoadSettings(item.id)}>
+                                <span>{item.name}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+
+            {hasData ? (
+                <>
+                    {/* Controls */}
+                    <Card>
+                        <CardContent className="p-4 flex flex-col gap-4">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <Button variant="outline" size="icon" onClick={handlePrev} disabled={currentIndex === 0 || isSending}>
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="text-sm font-medium">{t("preview.record")} {currentIndex + 1} of {totalRecords}</div>
+                                    <Button variant="outline" size="icon" onClick={handleNext} disabled={currentIndex === totalRecords - 1 || isSending}>
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    {hasOverride && (
+                                        <Button variant="ghost" size="sm" onClick={resetCurrentOverride} className="text-amber-600">
+                                            <RotateCcw className="h-3 w-3 mr-1" /> {t("preview.reset")}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Sending Options */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Delay (ms)</label>
+                                    <input type="number" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={delayMs} onChange={(e) => setDelayMs(Number(e.target.value))} min={0} />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-xs font-medium text-muted-foreground">Schedule Start</label>
+                                    <input type="datetime-local" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
+                                </div>
+                                <div className="flex items-end">
+                                    <Button onClick={handleSendClick} disabled={isSending || isScheduledWait} className="w-full">
+                                        {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                        {isSending ? t("preview.sending") : isScheduledWait ? t("preview.waiting") : t("preview.sendAll")}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            {(isSending || isScheduledWait) && (
+                                <div className="w-full h-2 bg-secondary rounded-full overflow-hidden mt-2">
+                                    <div className={cn("h-full transition-all duration-300", isScheduledWait ? "bg-amber-500 animate-pulse" : "bg-primary")} style={{ width: isScheduledWait ? "100%" : `${progress}%` }} />
+                                </div>
                             )}
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
-                    {/* Sending Options */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-medium text-muted-foreground">Delay (ms)</label>
-                            <input type="number" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={delayMs} onChange={(e) => setDelayMs(Number(e.target.value))} min={0} />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs font-medium text-muted-foreground">Schedule Start</label>
-                            <input type="datetime-local" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)} />
-                        </div>
-                        <div className="flex items-end">
-                            <Button onClick={handleSendClick} disabled={isSending || isScheduledWait} className="w-full">
-                                {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                                {isSending ? t("preview.sending") : isScheduledWait ? t("preview.waiting") : t("preview.sendAll")}
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    {(isSending || isScheduledWait) && (
-                        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden mt-2">
-                            <div className={cn("h-full transition-all duration-300", isScheduledWait ? "bg-amber-500 animate-pulse" : "bg-primary")} style={{ width: isScheduledWait ? "100%" : `${progress}%` }} />
-                        </div>
+                    {/* Execution Log */}
+                    {logs.length > 0 && (
+                        <Card className="max-h-[150px] overflow-auto">
+                            <CardHeader className="py-2 bg-muted/20"><CardTitle className="text-sm">{t("preview.executionLog")}</CardTitle></CardHeader>
+                            <div className="p-0 text-xs font-mono">
+                                <table className="w-full">
+                                    <tbody>
+                                        {logs.map((log, i) => (
+                                            <tr key={i} className={cn("border-b last:border-0", log.status === "error" ? "bg-red-50 dark:bg-red-900/20" : "")}>
+                                                <td className="p-2 text-muted-foreground">{log.timestamp}</td>
+                                                <td className="p-2 font-semibold">{log.email}</td>
+                                                <td className={cn("p-2", log.status === "success" ? "text-green-600" : "text-red-600")}>{log.status === "success" ? "OK" : "ERR"}</td>
+                                                <td className="p-2 text-muted-foreground truncate max-w-[300px]" title={log.message}>{log.message}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
                     )}
-                </CardContent>
-            </Card>
 
-            {/* Execution Log */}
-            {logs.length > 0 && (
-                <Card className="max-h-[150px] overflow-auto">
-                    <CardHeader className="py-2 bg-muted/20"><CardTitle className="text-sm">{t("preview.executionLog")}</CardTitle></CardHeader>
-                    <div className="p-0 text-xs font-mono">
-                        <table className="w-full">
-                            <tbody>
-                                {logs.map((log, i) => (
-                                    <tr key={i} className={cn("border-b last:border-0", log.status === "error" ? "bg-red-50 dark:bg-red-900/20" : "")}>
-                                        <td className="p-2 text-muted-foreground">{log.timestamp}</td>
-                                        <td className="p-2 font-semibold">{log.email}</td>
-                                        <td className={cn("p-2", log.status === "success" ? "text-green-600" : "text-red-600")}>{log.status === "success" ? "OK" : "ERR"}</td>
-                                        <td className="p-2 text-muted-foreground truncate max-w-[300px]" title={log.message}>{log.message}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            )}
+                    {/* Editable Preview Pane */}
+                    <Card className="flex-1 flex flex-col overflow-hidden">
+                        <CardHeader className="bg-muted/30 border-b py-3">
+                            <div className="grid gap-3 text-sm">
+                                {/* From Name */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.from")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.fromName}
+                                        onChange={(e) => updateCurrentOverride("fromName", e.target.value)}
+                                        placeholder="Name (optional)"
+                                    />
+                                </div>
+                                {/* From Email */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.fromEmail")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.fromEmail}
+                                        onChange={(e) => updateCurrentOverride("fromEmail", e.target.value)}
+                                        placeholder="sender@example.com"
+                                    />
+                                </div>
+                                {/* To */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.to")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.to}
+                                        onChange={(e) => updateCurrentOverride("to", e.target.value)}
+                                    />
+                                </div>
+                                {/* Subject */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.subject")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.subject}
+                                        onChange={(e) => updateCurrentOverride("subject", e.target.value)}
+                                    />
+                                </div>
+                                {/* CC / BCC */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.cc")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.cc}
+                                        onChange={(e) => updateCurrentOverride("cc", e.target.value)}
+                                        placeholder="Optional"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.bcc")}:</span>
+                                    <input
+                                        className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                        value={currentEmail.bcc}
+                                        onChange={(e) => updateCurrentOverride("bcc", e.target.value)}
+                                        placeholder="Optional"
+                                    />
+                                </div>
+                                {/* Attachments (read-only) */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold w-16 text-right shrink-0">{t("preview.attach")}:</span>
+                                    <span className="text-muted-foreground">{previewAttachmentsName}</span>
+                                </div>
+                            </div>
+                        </CardHeader>
 
-            {/* Editable Preview Pane */}
-            <Card className="flex-1 flex flex-col overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b py-3">
-                    <div className="grid gap-3 text-sm">
-                        {/* From Name */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.from")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.fromName}
-                                onChange={(e) => updateCurrentOverride("fromName", e.target.value)}
-                                placeholder="Name (optional)"
-                            />
+                        {/* Body View Mode Toggle */}
+                        <div className="flex items-center gap-2 p-2 border-b bg-muted/20">
+                            <div className="flex bg-muted rounded-lg p-1">
+                                <Button
+                                    variant={bodyViewMode === "rich" ? "secondary" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setBodyViewMode("rich")}
+                                    className="h-7 text-xs"
+                                >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    {t("common.richText")}
+                                </Button>
+                                <Button
+                                    variant={bodyViewMode === "html" ? "secondary" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setBodyViewMode("html")}
+                                    className="h-7 text-xs"
+                                >
+                                    <Code className="h-3 w-3 mr-1" />
+                                    {t("common.html")}
+                                </Button>
+                            </div>
                         </div>
-                        {/* From Email */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.fromEmail")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.fromEmail}
-                                onChange={(e) => updateCurrentOverride("fromEmail", e.target.value)}
-                                placeholder="sender@example.com"
-                            />
-                        </div>
-                        {/* To */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.to")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.to}
-                                onChange={(e) => updateCurrentOverride("to", e.target.value)}
-                            />
-                        </div>
-                        {/* Subject */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.subject")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.subject}
-                                onChange={(e) => updateCurrentOverride("subject", e.target.value)}
-                            />
-                        </div>
-                        {/* CC / BCC */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.cc")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.cc}
-                                onChange={(e) => updateCurrentOverride("cc", e.target.value)}
-                                placeholder="Optional"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.bcc")}:</span>
-                            <input
-                                className="flex-1 bg-transparent border border-input rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                                value={currentEmail.bcc}
-                                onChange={(e) => updateCurrentOverride("bcc", e.target.value)}
-                                placeholder="Optional"
-                            />
-                        </div>
-                        {/* Attachments (read-only) */}
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold w-16 text-right shrink-0">{t("preview.attach")}:</span>
-                            <span className="text-muted-foreground">{previewAttachmentsName}</span>
-                        </div>
-                    </div>
-                </CardHeader>
 
-                {/* Body View Mode Toggle */}
-                <div className="flex items-center gap-2 p-2 border-b bg-muted/20">
-                    <div className="flex bg-muted rounded-lg p-1">
-                        <Button
-                            variant={bodyViewMode === "rich" ? "secondary" : "ghost"}
-                            size="sm"
-                            onClick={() => setBodyViewMode("rich")}
-                            className="h-7 text-xs"
-                        >
-                            <Eye className="h-3 w-3 mr-1" />
-                            {t("common.richText")}
-                        </Button>
-                        <Button
-                            variant={bodyViewMode === "html" ? "secondary" : "ghost"}
-                            size="sm"
-                            onClick={() => setBodyViewMode("html")}
-                            className="h-7 text-xs"
-                        >
-                            <Code className="h-3 w-3 mr-1" />
-                            {t("common.html")}
-                        </Button>
-                    </div>
+                        <CardContent className="flex-1 p-0 overflow-auto">
+                            {bodyViewMode === "rich" ? (
+                                <Editor
+                                    value={currentEmail.body}
+                                    onChange={(val) => updateCurrentOverride("body", val)}
+                                />
+                            ) : (
+                                <Textarea
+                                    className="w-full h-full min-h-[300px] border-0 rounded-none resize-none font-mono text-sm p-4 focus-visible:ring-0"
+                                    value={currentEmail.body}
+                                    onChange={(e) => updateCurrentOverride("body", e.target.value)}
+                                    placeholder="<html>...</html>"
+                                />
+                            )}
+                        </CardContent>
+                    </Card>
+                </>
+            ) : (
+                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
+                    <AlertCircle className="mb-4 h-12 w-12" />
+                    <h3 className="text-lg font-semibold">{t("preview.noDataImported")}</h3>
+                    <p>{t("preview.noDataImportedDescription")}</p>
                 </div>
-
-                <CardContent className="flex-1 p-0 overflow-auto">
-                    {bodyViewMode === "rich" ? (
-                        <Editor
-                            value={currentEmail.body}
-                            onChange={(val) => updateCurrentOverride("body", val)}
-                        />
-                    ) : (
-                        <Textarea
-                            className="w-full h-full min-h-[300px] border-0 rounded-none resize-none font-mono text-sm p-4 focus-visible:ring-0"
-                            value={currentEmail.body}
-                            onChange={(e) => updateCurrentOverride("body", e.target.value)}
-                            placeholder="<html>...</html>"
-                        />
-                    )}
-                </CardContent>
-            </Card>
+            )}
         </div>
     );
 }

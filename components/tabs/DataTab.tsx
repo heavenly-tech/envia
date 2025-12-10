@@ -3,22 +3,38 @@
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { Upload, Trash2, Download, Plus, FileText, FileSpreadsheet, HelpCircle } from "lucide-react";
+import { Upload, Trash2, Download, Plus, FileText, FileSpreadsheet, HelpCircle, Save, FolderOpen, Database } from "lucide-react";
 import { useMailMerge, DataRow } from "@/context/MailMergeContext";
 import { useI18n } from "@/context/I18nContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { listDataItems, saveDataItem, getDataItem, SavedDataItem } from "@/lib/storage";
 
 export default function DataTab() {
     const { data, setData, updateDataCell, headers } = useMailMerge();
     const { t } = useI18n();
     const [isDragging, setIsDragging] = useState(false);
+
+    // Save/Load State
+    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+    const [saveName, setSaveName] = useState("");
+    const [savedItems, setSavedItems] = useState<SavedDataItem[]>([]);
+
     const [pasteModalOpen, setPasteModalOpen] = useState(false);
     const [csvText, setCsvText] = useState("");
     const [viewMode, setViewMode] = useState<"table" | "text">("table");
@@ -28,7 +44,37 @@ export default function DataTab() {
     // Prevent hydration mismatch with Radix UI
     useEffect(() => {
         setMounted(true);
+        refreshSavedItems();
     }, []);
+
+    const refreshSavedItems = () => {
+        setSavedItems(listDataItems());
+    };
+
+    const handleSave = () => {
+        if (!saveName.trim()) {
+            toast.error(t("saved.nameRequired") || "Please enter a name");
+            return;
+        }
+        if (data.length === 0) {
+            toast.error(t("saved.noData") || "No data to save");
+            return;
+        }
+        saveDataItem(saveName.trim(), data, headers);
+        toast.success(t("saved.saveSuccess") || "Saved successfully!");
+        setSaveName("");
+        setSaveDialogOpen(false);
+        refreshSavedItems();
+    };
+
+    const handleLoadItem = (id: string) => {
+        const item = getDataItem(id);
+        if (item) {
+            setData(item.rows);
+            toast.success(t("saved.loaded") || "Configuration loaded!");
+            setViewMode("table");
+        }
+    };
 
     // Sync Text Mode when switching
     const handleModeSwitch = (mode: "table" | "text") => {
@@ -249,14 +295,72 @@ export default function DataTab() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <Card>
-                <CardHeader>
-                    <CardTitle>{t("data.title")}</CardTitle>
-                    <CardDescription>
+            <div className="flex flex-row items-center justify-between">
+                <div className="space-y-1.5">
+                    <h2 className="text-lg font-semibold leading-none tracking-tight">{t("data.title")}</h2>
+                    <p className="text-sm text-muted-foreground">
                         {t("data.description")}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    {/* Load Dropdown */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <FolderOpen className="h-4 w-4 mr-2" />
+                                {t("saved.load") || "Load"}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>{t("saved.savedData") || "Saved Data"}</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {savedItems.length === 0 ? (
+                                <DropdownMenuItem disabled>
+                                    <span className="text-muted-foreground italic">{t("saved.noItems") || "No saved items"}</span>
+                                </DropdownMenuItem>
+                            ) : (
+                                savedItems.map(item => (
+                                    <DropdownMenuItem key={item.id} onClick={() => handleLoadItem(item.id)}>
+                                        <Database className="h-4 w-4 mr-2 text-blue-500" />
+                                        <span>{item.name}</span>
+                                        <span className="ml-auto text-xs text-muted-foreground">({item.rows.length})</span>
+                                    </DropdownMenuItem>
+                                ))
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {/* Save Button */}
+                    <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm">
+                                <Save className="h-4 w-4 mr-2" />
+                                {t("common.save") || "Save"}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>{t("saved.saveNewConfig") || "Save New Configuration"}</DialogTitle>
+                                <DialogDescription>
+                                    {t("saved.saveDialogDesc") || "Give this data configuration a name to save it."}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 py-4">
+                                <Input
+                                    placeholder={t("saved.enterName") || "Enter name..."}
+                                    value={saveName}
+                                    onChange={(e) => setSaveName(e.target.value)}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleSave}>{t("common.save") || "Save"}</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            </div>
+            <Card>
+                <CardContent className="p-6">
                     {data.length === 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* Option 1: Upload File */}
@@ -448,7 +552,7 @@ export default function DataTab() {
                                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <Trash2
                                                                     className="h-3 w-3 cursor-pointer text-destructive hover:text-red-700"
-                                                                    marginBottom={0}
+
                                                                     onClick={() => deleteColumn(header)}
                                                                 />
                                                             </div>

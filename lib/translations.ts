@@ -133,7 +133,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         // Saved Tab
         "saved.save": "Save Configuration",
         "saved.saveDesc": "Save your current data, template, or SMTP settings for later use.",
-        "saved.saveNew": "Save New Configuration",
+        "saved.saveNewConfig": "Save New Configuration",
         "saved.saveTitle": "Save Configuration",
         "saved.saveDialogDesc": "Choose what to save and give it a name.",
         "saved.name": "Name",
@@ -177,16 +177,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "saved.savedTemplates": "Saved Templates",
         "saved.savedSMTP": "Saved SMTP",
         "saved.noItems": "No saved items",
-        "saved.exportAll": "Export All",
-        "saved.saveCurrent": "Save Current",
-        "saved.saveNew": "Save New",
-        "saved.enterName": "Enter name...",
-        "saved.nameRequired": "Please enter a name",
+        "saved.composerTitle": "Configuration Composer",
+        "saved.composerDesc": "Mix & match saved items to build your campaign.",
+        "saved.selected": "Selected",
         "saved.saveSuccess": "Saved successfully!",
         "saved.saveError": "Error saving",
-        "saved.confirmDelete": "Are you sure you want to delete this?",
-        "saved.mixMatchTitle": "Configuration Loader",
-        "saved.mixMatchDesc": "Combine your saved Data, Templates, and SMTP settings below.",
+
+
 
 
         // Common
@@ -373,16 +370,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "saved.savedTemplates": "Plantillas Guardadas",
         "saved.savedSMTP": "SMTP Guardados",
         "saved.noItems": "Sin elementos guardados",
-        "saved.exportAll": "Exportar Todo",
-        "saved.saveCurrent": "Guardar Actual",
-        "saved.saveNew": "Guardar Nuevo",
-        "saved.enterName": "Ingresa un nombre...",
-        "saved.nameRequired": "Por favor ingresa un nombre",
+        "saved.composerTitle": "Compositor de Configuración",
+        "saved.composerDesc": "Combina elementos guardados para crear tu campaña.",
+        "saved.selected": "Seleccionado",
         "saved.saveSuccess": "¡Guardado exitosamente!",
         "saved.saveError": "Error al guardar",
-        "saved.confirmDelete": "¿Estás seguro de que quieres eliminar esto?",
-        "saved.mixMatchTitle": "Cargador de Configuraciones",
-        "saved.mixMatchDesc": "Combina tus Datos, Plantillas y configuraciones SMTP guardadas a continuación.",
+
+
 
 
         // Common
