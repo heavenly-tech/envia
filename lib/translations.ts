@@ -193,6 +193,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "common.optional": "Optional",
         "common.richText": "Rich Text",
         "common.html": "HTML",
+        "common.reset": "Reset",
+        "saved.exportAll": "Export Bundle",
     },
     es: {
         // Navigation
@@ -386,6 +388,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "common.optional": "Opcional",
         "common.richText": "Texto Enriquecido",
         "common.html": "HTML",
+        "common.reset": "Restablecer",
+        "saved.exportAll": "Exportar Paquete",
     }
 };
 

@@ -137,3 +137,24 @@ Ideal for hosting on a server or for development.
 
 ## Privacy Note
 Your data (CSV) lives in your browser's memory. Your SMTP credentials live in your browser's LocalStorage. The server acts purely as a relay and does not persist your data or credentials.
+
+## 📦 Application Distribution and Packaging
+
+### Internal Distribution (Portable EXE)
+
+1.  **Generate Build**: Run the following command in your terminal:
+    ```bash
+    npm run dist:win
+    ```
+2.  **Locate File**: The output portable `.exe` file will be generated in the `dist/` directory. It will be named something like `Envia-Portable-0.1.0.exe`.
+3.  **Share**: Compress the generated file into a ZIP archive and upload it to the designated Google Drive shared folder.
+
+### Public Distribution (MSI Installer)
+
+1.  **Generate Build**: The same command generates the MSI installer:
+    ```bash
+    npm run dist:win
+    ```
+2.  **Locate File**: The output `.msi` file will be generated in the `dist/` directory (e.g., `Envia-0.1.0.msi`).
+3.  **Sign (CRITICAL)**: **The generated MSI file MUST be signed with an Authenticode Code Signing Certificate before public release to avoid security warnings.**
+4.  **Release**: Upload the signed MSI to the public download server.

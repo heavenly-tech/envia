@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "electron:dev": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:build": "next build && node scripts/move-files.js && electron-builder"
+    "electron:build": "next build && node scripts/move-files.js && electron-builder",
+    "dist:win": "electron-builder --win"
   },
   "build": {
     "appId": "com.envia.app",
@@ -41,8 +42,18 @@
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        "portable",
+        "msi"
+      ],
       "icon": "public/favicon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "msi": {
+      "perMachine": true,
+      "oneClick": false
     }
   },
   "dependencies": {
