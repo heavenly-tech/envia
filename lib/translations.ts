@@ -178,6 +178,16 @@ export const translations: Record<Locale, Record<string, string>> = {
         "saved.savedSMTP": "Saved SMTP",
         "saved.noItems": "No saved items",
         "saved.exportAll": "Export All",
+        "saved.saveCurrent": "Save Current",
+        "saved.saveNew": "Save New",
+        "saved.enterName": "Enter name...",
+        "saved.nameRequired": "Please enter a name",
+        "saved.saveSuccess": "Saved successfully!",
+        "saved.saveError": "Error saving",
+        "saved.confirmDelete": "Are you sure you want to delete this?",
+        "saved.mixMatchTitle": "Configuration Loader",
+        "saved.mixMatchDesc": "Combine your saved Data, Templates, and SMTP settings below.",
+
 
         // Common
         "common.confirm": "Confirm",
@@ -364,6 +374,16 @@ export const translations: Record<Locale, Record<string, string>> = {
         "saved.savedSMTP": "SMTP Guardados",
         "saved.noItems": "Sin elementos guardados",
         "saved.exportAll": "Exportar Todo",
+        "saved.saveCurrent": "Guardar Actual",
+        "saved.saveNew": "Guardar Nuevo",
+        "saved.enterName": "Ingresa un nombre...",
+        "saved.nameRequired": "Por favor ingresa un nombre",
+        "saved.saveSuccess": "¡Guardado exitosamente!",
+        "saved.saveError": "Error al guardar",
+        "saved.confirmDelete": "¿Estás seguro de que quieres eliminar esto?",
+        "saved.mixMatchTitle": "Cargador de Configuraciones",
+        "saved.mixMatchDesc": "Combina tus Datos, Plantillas y configuraciones SMTP guardadas a continuación.",
+
 
         // Common
         "common.confirm": "Confirmar",

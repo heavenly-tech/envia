@@ -79,7 +79,7 @@ export default function SettingsTab() {
                         <Input
                             id="smtpUser"
                             name="smtpUser"
-                            placeholder="you@example.com"
+                            placeholder={t("settings.userPlaceholder") || "you@example.com"}
                             value={settings.smtpUser}
                             onChange={handleChange}
                         />
@@ -110,7 +110,7 @@ export default function SettingsTab() {
                             </Tooltip>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            Note: If using Gmail, you must use an <a href="https://myaccount.google.com/apppasswords" target="_blank" className="underline hover:text-primary">App Password</a>.
+                            {t("settings.smtpPassNote")}
                         </p>
                     </div>
 
@@ -120,7 +120,7 @@ export default function SettingsTab() {
                             <Input
                                 id="fromName"
                                 name="fromName"
-                                placeholder="Your Company Name"
+                                placeholder={t("settings.fromNamePlaceholder") || "Your Company Name"}
                                 value={settings.fromName}
                                 onChange={handleChange}
                             />
@@ -130,7 +130,7 @@ export default function SettingsTab() {
                             <Input
                                 id="fromEmail"
                                 name="fromEmail"
-                                placeholder="you@example.com"
+                                placeholder={t("settings.fromEmailPlaceholder") || "you@example.com"}
                                 value={settings.fromEmail}
                                 onChange={handleChange}
                             />
